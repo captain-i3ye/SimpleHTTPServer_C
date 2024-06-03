@@ -23,7 +23,11 @@ int main(void) {
 	}
 
 	// TODO: set REUSE_PORT : Address already in use.
-	
+	int reuse = 1;
+	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
+		fprintf(stderr, "SO_REUSEPORT failed ... %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 	// set server address
 	struct sockaddr_in serv_addr =  {   .sin_family = AF_INET,
 										.sin_port = htons(4234),
@@ -31,7 +35,7 @@ int main(void) {
 									};
 
 	// bind the socket
-	if (bind(server_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != 0) {
+	if (bind(server_fd, (struct sockaddr *) &serv_addr, (socklen_t) sizeof(serv_addr)) != 0) {
 		fprintf(stderr, "Could not bind socket ... %s\n", strerror(errno));
 		close(server_fd);
 		exit(EXIT_FAILURE);
@@ -47,16 +51,22 @@ int main(void) {
 
 	struct sockaddr_in client_addr;
 	int client_addr_len = sizeof(client_addr);
-	int new_sock_fd;
+	int client_fd;
+	
+	printf("Waiting for connection ... \n");
 
 	// accept the connection
-	if ((new_sock_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_len)) < 0) {
+	if ((client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len)) < 0) {
 		fprintf(stderr, "Failed to accept ... %s\n", strerror(errno));
 		close(server_fd);
 		exit(EXIT_FAILURE);
 	}
 
-	printf("\n\nConnected !!! \n");
+	printf("\n\nConnected on port %d\n", serv_addr.sin_port);
+
+	char* response = "HTTP/1.1 200 OK\r\n\r\n";
+	int bytes_sent = send(client_fd, response, strlen(response), 0);
+	
 
 	// close the connection
 	close(server_fd);
